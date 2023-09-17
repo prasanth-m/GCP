@@ -1,0 +1,186 @@
+{
+  "components": {
+    "comp-bigquery-query-job": {
+      "executorLabel": "exec-bigquery-query-job",
+      "inputDefinitions": {
+        "parameters": {
+          "encryption_spec_key_name": {
+            "defaultValue": "",
+            "description": "Describes the Cloud\nKMS encryption key that will be used to protect destination\nBigQuery table. The BigQuery Service Account associated with your\nproject requires access to this encryption key. If\nencryption_spec_key_name are both specified in here and in\njob_configuration_query, the value in here will override the other\none.",
+            "isOptional": true,
+            "parameterType": "STRING"
+          },
+          "job_configuration_query": {
+            "defaultValue": {},
+            "description": "A json formatted string\ndescribing the rest of the job configuration.  For more details, see\nhttps://cloud.google.com/bigquery/docs/reference/rest/v2/Job#JobConfigurationQuery",
+            "isOptional": true,
+            "parameterType": "STRUCT"
+          },
+          "labels": {
+            "defaultValue": {},
+            "description": "The labels associated with this job. You can\nuse these to organize and group your jobs. Label keys and values can\nbe no longer than 63 characters, can only containlowercase letters,\nnumeric characters, underscores and dashes. International characters\nare allowed. Label values are optional. Label keys must start with a\nletter and each label in the list must have a different key.\nExample: { \"name\": \"wrench\", \"mass\": \"1.3kg\", \"count\": \"3\" }.",
+            "isOptional": true,
+            "parameterType": "STRUCT"
+          },
+          "location": {
+            "defaultValue": "us-central1",
+            "description": "Location for creating the BigQuery job. If not\nset, default to `US` multi-region.  For more details, see\nhttps://cloud.google.com/bigquery/docs/locations#specifying_your_location",
+            "isOptional": true,
+            "parameterType": "STRING"
+          },
+          "project": {
+            "defaultValue": "{{$.pipeline_google_cloud_project_id}}",
+            "description": "Project to run the BigQuery query job. Defaults to the project in which the PipelineJob is run.",
+            "isOptional": true,
+            "parameterType": "STRING"
+          },
+          "query": {
+            "defaultValue": "",
+            "description": "SQL query text to execute. Only standard SQL is\nsupported.  If query are both specified in here and in\njob_configuration_query, the value in here will override the other\none.",
+            "isOptional": true,
+            "parameterType": "STRING"
+          },
+          "query_parameters": {
+            "defaultValue": [],
+            "description": "jobs.query parameters for\nstandard SQL queries.  If query_parameters are both specified in here\nand in job_configuration_query, the value in here will override the\nother one.",
+            "isOptional": true,
+            "parameterType": "LIST"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "destination_table": {
+            "artifactType": {
+              "schemaTitle": "google.BQTable",
+              "schemaVersion": "0.0.1"
+            },
+            "description": "Describes the table where the query results should be stored.\nThis property must be set for large results that exceed the maximum\nresponse size.\nFor queries that produce anonymous (cached) results, this field will\nbe populated by BigQuery."
+          }
+        },
+        "parameters": {
+          "gcp_resources": {
+            "description": "Serialized gcp_resources proto tracking the BigQuery job.\nFor more details, see\nhttps://github.com/kubeflow/pipelines/blob/master/components/google-cloud/google_cloud_pipeline_components/proto/README.md.",
+            "parameterType": "STRING"
+          }
+        }
+      }
+    }
+  },
+  "deploymentSpec": {
+    "executors": {
+      "exec-bigquery-query-job": {
+        "container": {
+          "args": [
+            "--type",
+            "BigqueryQueryJob",
+            "--project",
+            "{{$.inputs.parameters['project']}}",
+            "--location",
+            "{{$.inputs.parameters['location']}}",
+            "--payload",
+            "{\"Concat\": [\"{\", \"\\\"configuration\\\": {\", \"\\\"query\\\": \", \"{{$.inputs.parameters['job_configuration_query']}}\", \", \\\"labels\\\": \", \"{{$.inputs.parameters['labels']}}\", \"}\", \"}\"]}",
+            "--job_configuration_query_override",
+            "{\"Concat\": [\"{\", \"\\\"query\\\": \\\"\", \"{{$.inputs.parameters['query']}}\", \"\\\"\", \", \\\"query_parameters\\\": \", \"{{$.inputs.parameters['query_parameters']}}\", \", \\\"destination_encryption_configuration\\\": {\", \"\\\"kmsKeyName\\\": \\\"\", \"{{$.inputs.parameters['encryption_spec_key_name']}}\", \"\\\"}\", \"}\"]}",
+            "--gcp_resources",
+            "{{$.outputs.parameters['gcp_resources'].output_file}}",
+            "--executor_input",
+            "{{$}}"
+          ],
+          "command": [
+            "python3",
+            "-u",
+            "-m",
+            "google_cloud_pipeline_components.container.v1.bigquery.query_job.launcher"
+          ],
+          "image": "gcr.io/ml-pipeline/google-cloud-pipeline-components:2.3.1"
+        }
+      }
+    }
+  },
+  "pipelineInfo": {
+    "description": "A batch pipeline to update the existing history table with currrent data",
+    "name": "run-churn-table-update"
+  },
+  "root": {
+    "dag": {
+      "tasks": {
+        "bigquery-query-job": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-bigquery-query-job"
+          },
+          "inputs": {
+            "parameters": {
+              "location": {
+                "runtimeValue": {
+                  "constant": "US"
+                }
+              },
+              "project": {
+                "componentInputParameter": "project"
+              },
+              "query": {
+                "componentInputParameter": "create_bq_merge_query"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "bigquery-query-job"
+          }
+        }
+      }
+    },
+    "inputDefinitions": {
+      "parameters": {
+        "bq_dataset": {
+          "parameterType": "STRING"
+        },
+        "bq_table": {
+          "parameterType": "STRING"
+        },
+        "bq_view": {
+          "parameterType": "STRING"
+        },
+        "create_bq_merge_query": {
+          "parameterType": "STRING"
+        },
+        "inputs_uri": {
+          "parameterType": "STRING"
+        },
+        "job_config": {
+          "parameterType": "STRUCT"
+        },
+        "job_name": {
+          "parameterType": "STRING"
+        },
+        "project": {
+          "defaultValue": "lucid-forklift-399118",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "python_file_path": {
+          "parameterType": "STRING"
+        },
+        "region": {
+          "defaultValue": "us-central1",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "requirements_file_path": {
+          "parameterType": "STRING"
+        },
+        "setup_file_uri": {
+          "parameterType": "STRING"
+        },
+        "temp_location": {
+          "parameterType": "STRING"
+        }
+      }
+    }
+  },
+  "schemaVersion": "2.1.0",
+  "sdkVersion": "kfp-2.1.3"
+}
